@@ -1,0 +1,192 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: EKSWSV1
+
+
+Parameters:
+
+  EksClusterName:
+    Type: String
+    Description: The name of the EKS cluster created
+    Default: eksworkshop-eksctl
+    MinLength: 1
+    MaxLength: 100
+    ConstraintDescription: You must enter the EKS cluster name
+
+  # TODO: Update this to final repo name
+  GitSourceRepo:
+    Type: String
+    Description: GitHub source repository - must contain a Dockerfile and buildspec.yml in the base
+    Default: eks-workshop-sample-api-service-go
+    MinLength: 1
+    MaxLength: 100
+    ConstraintDescription: You must enter a GitHub repository name
+
+  GitBranch:
+    Type: String
+    Default: master
+    Description: GitHub git repository branch - change triggers a new build
+    MinLength: 1
+    MaxLength: 100
+    ConstraintDescription: You must enter a GitHub repository branch name
+
+  GitHubToken:
+    Type: String
+    NoEcho: true
+    Description: GitHub API token - see https://github.com/blog/1509-personal-api-tokens
+    MinLength: 3
+    MaxLength: 100
+    ConstraintDescription: You must enter a GitHub personal access token
+
+  GitHubUser:
+    Type: String
+    Description: GitHub username or organization (case sensitive)
+    MinLength: 3
+    MaxLength: 100
+    ConstraintDescription: You must enter a GitHub username or organization
+
+  CodeBuildDockerImage:
+    Type: String
+    Default: aws/codebuild/docker:17.09.0
+    Description: Default AWS CodeBuild Docker optimized image
+    MinLength: 3
+    MaxLength: 100
+    ConstraintDescription: You must enter a CodeBuild Docker image
+
+  KubectlRoleName:
+    Type: String
+    Default: EksWorkshopCodeBuildKubectlRole
+    Description: IAM role used by kubectl to interact with EKS cluster
+    MinLength: 3
+    MaxLength: 100
+    ConstraintDescription: You must enter a kubectl IAM role
+
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: GitHub
+        Parameters:
+          - GitHubUser
+          - GitHubToken
+          - GitSourceRepo
+          - GitBranch
+      - Label:
+          default: CodeBuild
+        Parameters:
+          - CodeBuildDockerImage
+      - Label:
+          default: IAM
+        Parameters:
+          - KubectlRoleName
+      - Label:
+          default: EKS
+        Parameters:
+          - EksClusterName
+    ParameterLabels:
+      GitHubUser:
+        default: Username
+      GitHubToken:
+        default: Access token
+      GitSourceRepo:
+        default: Repository
+      GitBranch:
+        default: Branch
+      CodeBuildDockerImage:
+        default: Docker image
+      KubectlRoleName:
+        default: kubectl IAM role
+      EksClusterName:
+        default: EKS cluster name
+
+
+Resources:
+
+  EcrDockerRepository:
+    Type: AWS::ECR::Repository
+    DeletionPolicy: Retain
+    Properties:
+      RepositoryName: !Sub eks-workshop-cicd-${AWS::AccountId}
+
+  CodePipelineArtifactBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub eks-workshop-cicd-${AWS::AccountId}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Source:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Type: LINUX_CONTAINER
+        Image: !Ref CodeBuildDockerImage
+        EnvironmentVariables:
+          - Name: REPOSITORY_URI
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${EcrDockerRepository}
+          - Name: REPOSITORY_NAME
+            Value: !Ref GitSourceRepo
+          - Name: REPOSITORY_BRANCH
+            Value: !Ref GitBranch
+          - Name: EKS_CLUSTER_NAME
+            Value: !Ref EksClusterName
+          - Name: EKS_KUBECTL_ROLE_ARN
+            Value: !Sub arn:aws:iam::${AWS::AccountId}:role/${KubectlRoleName}
+      Name: !Ref AWS::StackName
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+
+  CodePipelineGitHub:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref CodePipelineArtifactBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: App
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Version: 1
+                Provider: GitHub
+              Configuration:
+                Owner: !Ref GitHubUser
+                Repo: !Ref GitSourceRepo
+                Branch: !Ref GitBranch
+                OAuthToken: !Ref GitHubToken
+              OutputArtifacts:
+                - Name: App
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              InputArtifacts:
+                - Name: App
+              OutputArtifacts:
+                - Name: BuildOutput
+              RunOrder: 1
+    DependsOn: CodeBuildProject
