@@ -19,11 +19,12 @@ onboard new services to your EKS cluster. For each new service the following ste
 
 Click the **Launch** button to create the CloudFormation stack in the AWS Management Console.
 
-| Launch template |  |  |
-| ------ |:------:|:--------:|
-| CodePipeline & EKS |  {{% cf-launch "ci-cd-codepipeline.cfn.yml" "eksws-codepipeline" %}} | {{% cf-download "ci-cd-codepipeline.cfn.yml" %}}  |
+{{< tabs name="Launch template" >}}
+{{< tab name="Workshop at AWS event" include="tabs/launch-ee.md" />}}
+{{< tab name="Workshop in your own account" include="tabs/launch.md" />}}
+{{< /tabs >}}
 
-After the console is open, enter your GitHub username, personal access token (created in previous step), check the acknowledge box and then click the "Create stack" button located at the bottom of the page.
+After the console is open, enter your GitHub username (case sensitive), personal access token (created in previous step), check the acknowledge box and then click the "Create stack" button located at the bottom of the page.
 
 ![CloudFormation Stack](/images/codepipeline/cloudformation_stack.png)
 
@@ -35,7 +36,7 @@ Open [CodePipeline in the Management Console](https://console.aws.amazon.com/cod
 Click this link to view the details.
 
 {{% notice tip %}}
-If you receive a permissions error similar to **User x is not authorized to perform: codepipeline:ListPipelines...** upon clicking the above link, the CodePipeline console may have opened up in the wrong region.  To correct this, from the **Region** dropdown in the console, choose the region you provisioned the workshop in.  Select Oregon (us-west-2) if you provisioned the workshow per the "Start the workshop at an AWS event" instructions. 
+If you receive a permissions error similar to **User x is not authorized to perform: codepipeline:ListPipelines...** upon clicking the above link, the CodePipeline console may have opened up in the wrong region.  To correct this, from the **Region** dropdown in the console, choose the region you provisioned the workshop in.  Select Oregon (us-west-2) if you provisioned the workshow per the "Start the workshop at an AWS event" instructions.
 {{% /notice %}}
 
 
