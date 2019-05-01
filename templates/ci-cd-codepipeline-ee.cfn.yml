@@ -110,21 +110,6 @@ Resources:
     Properties:
       RepositoryName: !Sub eks-workshop-cicd-${AWS::AccountId}
 
-  CodePipelineArtifactBucket:
-    Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
-    Properties:
-      BucketName: !Sub eks-workshop-cicd-${AWS::AccountId}
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
-
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
@@ -156,7 +141,7 @@ Resources:
       RoleArn: !Sub arn:aws:iam::${AWS::AccountId}:role/EksWorkshopCodePipelineServiceRole
       ArtifactStore:
         Type: S3
-        Location: !Ref CodePipelineArtifactBucket
+        Location: !Sub eks-workshop-cicd-${AWS::AccountId}
       Stages:
         - Name: Source
           Actions:
