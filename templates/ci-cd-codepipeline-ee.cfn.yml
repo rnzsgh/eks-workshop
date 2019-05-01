@@ -148,12 +148,12 @@ Resources:
           - Name: EKS_KUBECTL_ROLE_ARN
             Value: !Sub arn:aws:iam::${AWS::AccountId}:role/${KubectlRoleName}
       Name: !Ref AWS::StackName
-      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      ServiceRole: !Sub arn:aws:iam::${AWS::AccountId}:role/EksWorkshopCodeBuildServiceRole
 
   CodePipelineGitHub:
     Type: AWS::CodePipeline::Pipeline
     Properties:
-      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      RoleArn: !Sub arn:aws:iam::${AWS::AccountId}:role/EksWorkshopCodePipelineServiceRole
       ArtifactStore:
         Type: S3
         Location: !Ref CodePipelineArtifactBucket
